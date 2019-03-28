@@ -11,7 +11,7 @@ class Infoblox:
     def __init__(self, ip: str, username: str, password: str, wapi_version: str, ssl=True):
         if not ssl:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        self._base_url = f'https://{ip}/wapi/{wapi_version}/'
+        self._base_url = f'https://{ip}/wapi/v{wapi_version}/'
         self._username = username
         self._password = password
         self._cookie = False
