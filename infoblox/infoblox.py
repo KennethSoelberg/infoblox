@@ -56,6 +56,7 @@ class Infoblox:
     def delete_fixed_ip(self, mac: str = '', ref: str = '') -> dict:
         deleted_fiex_ips = {}
         if mac:
+            mac = mac.lower()
             try:
                 fixed_ip_data = self._fixed_ip_cache[mac]
             except KeyError:
@@ -63,7 +64,7 @@ class Infoblox:
 
             for fixed_ip in fixed_ip_data:
                 ip = fixed_ip['_ref'].split(':')[1].split('/')[0]
-                deleted_fiex_ips[ip] = self._delete_fixed_ip(ref=ref)
+                deleted_fiex_ips[ip] = self._delete_fixed_ip(ref=fixed_ip['_ref'])
         elif ref:
             ip = ref.split(':')[1].split('/')[0]
             deleted_fiex_ips[ip] = self._delete_fixed_ip(ref=ref)
