@@ -1,0 +1,2 @@
+class NetworkDoesNotExist(Exception):
+    pass

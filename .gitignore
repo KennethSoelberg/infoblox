@@ -5,7 +5,7 @@ __pycache__/
 
 # pycharm
 .idea/
-.test/
+test_infoblox/
 
 # C extensions
 *.so
