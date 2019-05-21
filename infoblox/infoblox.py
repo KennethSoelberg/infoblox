@@ -1,23 +1,23 @@
-from typing import List, Tuple
 from ipaddress import ip_network
+from typing import List
+
 import requests
-import urllib3
 
 from infoblox.infoblox_exceptions import *
+from infoblox.network import Network
 from .speciel_characters import speciel_characters_dict
 
 
 class Infoblox:
 
     def __init__(self, ip: str, username: str, password: str, network_view: str, wapi_version: str, ssl=True):
-        if not ssl:
-            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
         self._base_url = f'https://{ip}/wapi/v{wapi_version}/'
         self._username = username
         self._password = password
         self._cookie = False
         self._grid_id = self._get_grid_id()
-        self._settings = {'cookies': self._cookie, 'verify': False}
+        self._settings = {'cookies': self._cookie, 'verify': ssl}
         self._fixed_ip_cache = {}
         self._network_view = network_view
 
@@ -91,7 +91,7 @@ class Infoblox:
         try:
             ref = self.get_network(ip=ip).json()[0]['_ref']
         except IndexError:
-            raise NetworkDoesNotExist(f'Not network exist with ip:{ip}')
+            raise NetworkDoesNotExist(f'No network exist with ip:{ip}')
 
         r = self._delete(url=ref)
         return r
@@ -129,7 +129,9 @@ class Infoblox:
     def get_all_networks(self, max_results: int = 20000,
                          return_fiedls: str = 'network,netmask,ipv4addr,options') -> requests:
         r = self._get(url=f'network?_max_results={max_results}&_return_fields={return_fiedls}')
-        return r
+        data = r.json()
+        network_data = [Network([key for key in d.keys()], [value for value in d.values()]) for d in data]
+        return network_data
 
     def get_fixed_ip(self, mac: str, return_fields: str = 'ipv4addr,mac,name,comment') -> requests:
         r = self._get(url=f'fixedaddress?mac={mac}&_return_fields={return_fields}')
@@ -145,18 +147,33 @@ class Infoblox:
         else:
             return {}
 
-    def get_network(self, ip, return_fiedls: str = 'network,netmask,ipv4addr,options') -> requests:
-        return self._get(url=f'network?ipv4addr={ip}&_return_fields={return_fiedls}')
+    def get_network(self, ip, return_fiedls: str = 'network,netmask,ipv4addr,options') -> Network:
+        r = self._get(url=f'network?ipv4addr={ip}&_return_fields={return_fiedls}')
+        data = r.json()
+        if not data:
+            raise NetworkDoesNotExist(f'No network exist with ip:{ip}')
+        elif 'Error' in data:
+            raise NetworkDoesNotExist(f'No network exist with ip:{ip}, Error: {data["text"]}')
 
-    def update_dns(self, dns_servers: list, ref: str):
+        return Network([key for key in data[0].keys()], [value for value in data[0].values()])
+
+    def update_dns(self, dns_servers: list, network: Network):
         dns_string = ','.join(dns_servers)
-        data = {'options': [
-            {
-                "name": "domain-name-servers",
-                "num": 6,
-                "use_option": True,
-                "value": dns_string,
-                "vendor_class": "DHCP"
-            }]}
+        new_dns_data = {"name": "domain-name-servers",
+                        "num": 6,
+                        "use_option": True,
+                        "value": dns_string,
+                        "vendor_class": "DHCP"
+                        }
 
-        return requests.put(f'{self._base_url}{ref}', json=data, **self._settings)
+        for option in network.options.copy():
+            if option['name'] == 'domain-name-servers':
+                network.options.remove(option)
+
+        network.options.append(new_dns_data)
+        data = {'options': network.options}
+
+        return requests.put(f'{self._base_url}{network.ref}', json=data, **self._settings)
+
+    def update_options(self, options, ref):
+        return requests.put(f'{self._base_url}{ref}', json={'options': options}, **self._settings)
