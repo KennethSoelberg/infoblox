@@ -157,11 +157,11 @@ class Infoblox:
 
         return Network([key for key in data[0].keys()], [value for value in data[0].values()])
 
-    def update_dns(self, dns_servers: list, network: Network):
+    def update_dns(self, dns_servers: list, network: Network, use_dns: bool = True):
         dns_string = ','.join(dns_servers)
         new_dns_data = {"name": "domain-name-servers",
                         "num": 6,
-                        "use_option": True,
+                        "use_option": use_dns,
                         "value": dns_string,
                         "vendor_class": "DHCP"
                         }
