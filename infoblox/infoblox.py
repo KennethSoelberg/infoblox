@@ -175,5 +175,22 @@ class Infoblox:
 
         return requests.put(f'{self._base_url}{network.ref}', json=data, **self._settings)
 
+    def update_domain_name(self, domain_name: str, network: Network, use_domain_name: bool = True):
+        new_domain_name_data = {"name": "domain-name",
+                        "num": 15,
+                        "use_option": use_domain_name,
+                        "value": domain_name,
+                        "vendor_class": "DHCP"
+                        }
+
+        for option in network.options.copy():
+            if option['name'] == 'domain-name':
+                network.options.remove(option)
+
+        network.options.append(new_domain_name_data)
+        data = {'options': network.options}
+
+        return requests.put(f'{self._base_url}{network.ref}', json=data, **self._settings)
+
     def update_options(self, options, ref):
         return requests.put(f'{self._base_url}{ref}', json={'options': options}, **self._settings)
